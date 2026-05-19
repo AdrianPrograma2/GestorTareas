@@ -50,12 +50,5 @@
 </form>
 </div>
 
-{{-- Resumen del fichero actual --}}
-<div style="margin-top:28px;background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:16px;max-width:640px;">
-    <p style="font-size:12px;color:#555;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">
-        Contenido actual de app/config.php
-    </p>
-    <pre style="font-size:12px;color:#4da3ff;margin:0;white-space:pre-wrap;">{{ file_get_contents(base_path('app/config.php')) }}</pre>
-</div>
 
 @endsection
