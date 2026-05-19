@@ -40,6 +40,8 @@ class ConexionDB
             $this->pdo = new PDO($dsn, $usuario, $clave);
             $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_OBJ);
+            // Necesario para que LIMIT y OFFSET funcionen bien con parametros
+            $this->pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
         } catch (PDOException $e) {
             die('Error de conexion: ' . $e->getMessage());
         }
