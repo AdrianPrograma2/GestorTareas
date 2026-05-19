@@ -259,8 +259,9 @@ class TareaController extends Controller
 
         $provincias = $this->provincias();
         $operarios  = Usuario::operarios();
+        $errores    = [];
 
-        return view('tareas.formulario', compact('tarea', 'provincias', 'operarios'));
+        return view('tareas.formulario', compact('tarea', 'provincias', 'operarios', 'errores'));
     }
 
     /**
@@ -307,8 +308,9 @@ class TareaController extends Controller
         $tarea      = Tarea::buscar($id);
         $provincias = $this->provincias();
         $operarios  = Usuario::operarios();
+        $errores    = [];
 
-        return view('tareas.formulario_editar', compact('tarea', 'provincias', 'operarios'));
+        return view('tareas.formulario_editar', compact('tarea', 'provincias', 'operarios', 'errores'));
     }
 
     /**

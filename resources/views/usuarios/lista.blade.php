@@ -31,8 +31,7 @@
             <td>
                 <div class="acciones">
                     <a href="{{ url('usuarios/editar/'.$u->id) }}" class="btn btn-secundario">Editar</a>
-                    <a href="{{ url('usuarios/borrar/'.$u->id) }}" class="btn btn-peligro"
-                       onclick="return confirm('Eliminar usuario {{ $u->usuario }}?')">Borrar</a>
+                    <a href="{{ url('usuarios/borrar/'.$u->id) }}" class="btn btn-peligro">Borrar</a>
                 </div>
             </td>
         </tr>

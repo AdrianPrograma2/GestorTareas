@@ -4,7 +4,7 @@
 
 <h2>Editar tarea #{{ $tarea->id }}</h2>
 
-@php $e = $errores ?? []; @endphp
+@php $e = $errores; @endphp
 
 <div class="contenedor-formulario">
 <form action="{{ url('tareas/actualizar') }}" method="post">

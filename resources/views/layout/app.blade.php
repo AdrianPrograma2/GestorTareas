@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('titulo', 'Gestor de Tareas') — Bunglebuild S.L.</title>
-    <link rel="stylesheet" href="{{ url('/css/estilos.css') }}?v={{ filemtime(public_path('css/estilos.css')) }}">
+    <link rel="stylesheet" href="{{ url('/css/estilos.css') }}">
 </head>
 <body>
 

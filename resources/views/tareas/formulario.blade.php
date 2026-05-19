@@ -4,7 +4,7 @@
 
 <h2>Nueva tarea</h2>
 
-@php $e = $errores ?? []; @endphp
+@php $e = $errores; @endphp
 
 <div class="contenedor-formulario">
 <form action="{{ url('tareas/guardar') }}" method="post" enctype="multipart/form-data">

@@ -14,7 +14,9 @@ use App\Http\Controllers\ConfigController;
 */
 
 /* Inicio → redirige al login */
-Route::get('/', fn() => redirect('login'));
+Route::get('/', function() {
+    return redirect('login');
+});
 
 /* -------------------- LOGIN / LOGOUT -------------------- */
 Route::get('login',  [UsuarioController::class, 'loginForm']);
@@ -51,3 +53,4 @@ Route::post('usuarios/guardar',             [UsuarioController::class, 'guardar'
 Route::get('usuarios/editar/{id}',          [UsuarioController::class, 'editar']);
 Route::post('usuarios/actualizar',          [UsuarioController::class, 'actualizar']);
 Route::get('usuarios/borrar/{id}',          [UsuarioController::class, 'borrar']);
+Route::post('usuarios/borrar_confirmar',    [UsuarioController::class, 'borrarConfirmar']);

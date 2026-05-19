@@ -226,7 +226,7 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Elimina un usuario. No se puede borrar el usuario que esta logueado.
+     * Muestra la pagina de confirmacion antes de borrar un usuario.
      * @param int $id
      */
     public function borrar($id)
@@ -244,7 +244,22 @@ class UsuarioController extends Controller
             return redirect('usuarios')->with('error', 'No puedes eliminar tu propio usuario.');
         }
 
-        Usuario::borrar($id);
+        return view('usuarios.confirmar_borrar', compact('usuario'));
+    }
+
+    /**
+     * Elimina definitivamente el usuario tras la confirmacion del servidor.
+     * @param Request $r
+     */
+    public function borrarConfirmar(Request $r)
+    {
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
+
+        $redir = $this->soloAdmin();
+        if ($redir != null) return $redir;
+
+        Usuario::borrar((int)$r->id);
         return redirect('usuarios')->with('exito', 'Usuario eliminado correctamente.');
     }
 }

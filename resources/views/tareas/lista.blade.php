@@ -37,7 +37,12 @@
             <td>{{ $t->fecha_realizacion ? date('d/m/Y', strtotime($t->fecha_realizacion)) : '-' }}</td>
             <td>
                 <span class="estado estado-{{ $t->estado }}">
-                    {{ ['P'=>'Pendiente','R'=>'Realizada','C'=>'Cancelada','B'=>'Bloqueada'][$t->estado] ?? $t->estado }}
+                    @if($t->estado == 'P') Pendiente
+                    @elseif($t->estado == 'R') Realizada
+                    @elseif($t->estado == 'C') Cancelada
+                    @elseif($t->estado == 'B') Bloqueada
+                    @else {{ $t->estado }}
+                    @endif
                 </span>
             </td>
             <td>{{ $t->operario ?? '-' }}</td>
@@ -59,20 +64,19 @@
 @if($totalPags > 1)
 <nav class="paginacion">
     <a href="{{ url('tareas?pagina=1') }}">Primera</a>
+
     @if($pagina > 1)
-        <a href="{{ url('tareas?pagina='.($pagina-1)) }}">Anterior</a>
+        <a href="{{ url('tareas?pagina='.($pagina - 1)) }}">Anterior</a>
     @endif
-    @for($i = max(1,$pagina-2); $i <= min($totalPags,$pagina+2); $i++)
-        @if($i == $pagina)
-            <span class="pag-activa">{{ $i }}</span>
-        @else
-            <a href="{{ url('tareas?pagina='.$i) }}">{{ $i }}</a>
-        @endif
-    @endfor
+
+    <span class="pag-activa">{{ $pagina }}</span>
+
     @if($pagina < $totalPags)
-        <a href="{{ url('tareas?pagina='.($pagina+1)) }}">Siguiente</a>
+        <a href="{{ url('tareas?pagina='.($pagina + 1)) }}">Siguiente</a>
     @endif
+
     <a href="{{ url('tareas?pagina='.$totalPags) }}">Ultima</a>
+
     <span class="pag-info">Pagina {{ $pagina }} de {{ $totalPags }}</span>
 </nav>
 @endif

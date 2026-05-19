@@ -16,7 +16,12 @@
     <tr><th>Provincia</th><td>{{ $tarea->provincia }}</td></tr>
     <tr><th>Estado</th><td>
         <span class="estado estado-{{ $tarea->estado }}">
-            {{ ['P'=>'Pendiente','R'=>'Realizada','C'=>'Cancelada','B'=>'Bloqueada'][$tarea->estado] ?? $tarea->estado }}
+            @if($tarea->estado == 'P') Pendiente
+            @elseif($tarea->estado == 'R') Realizada
+            @elseif($tarea->estado == 'C') Cancelada
+            @elseif($tarea->estado == 'B') Bloqueada
+            @else {{ $tarea->estado }}
+            @endif
         </span>
     </td></tr>
     <tr><th>Fecha de creacion</th><td>{{ $tarea->fecha_creacion ? date('d/m/Y H:i', strtotime($tarea->fecha_creacion)) : '-' }}</td></tr>
