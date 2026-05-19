@@ -9,7 +9,11 @@
       "Bash(git branch *)",
       "Bash(git remote *)",
       "Bash(git push *)",
-      "Bash(gh --version)"
+      "Bash(gh --version)",
+      "Bash(xargs grep -l 'eval\\\\|assert\\\\|$_GET\\\\|$_POST\\\\|$_REQUEST')",
+      "Bash(xargs grep -n \"session_start\\\\|setcookie\")",
+      "Bash(xargs grep -n \"setcookie\")",
+      "Bash(grep -rn \"var \\\\$\\\\|public \\\\$\\\\|private \\\\$\\\\|protected \\\\$\" \"C:\\\\xampp\\\\htdocs\\\\gestor_tareas_laravel\\\\app\\\\Models\" --include=\"*.php\")"
     ]
   }
 }

@@ -144,9 +144,12 @@ class TareaController extends Controller
             }
         }
 
-        // Provincia obligatoria
+        // Provincia: obligatoria y debe ser un codigo INE valido
+        $provinciasValidas = array_keys($this->provincias());
         if (trim($r->provincia) == '') {
             $errores['provincia'] = 'Debes seleccionar una provincia.';
+        } elseif (!in_array($r->provincia, $provinciasValidas)) {
+            $errores['provincia'] = 'La provincia seleccionada no es valida.';
         }
 
         // Fecha de realizacion: debe ser posterior a hoy
