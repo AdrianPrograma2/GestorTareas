@@ -1,0 +1,73 @@
+# ===========================================================
+# Doxyfile — Configuración Doxygen para Gestor de Tareas
+# Bunglebuild S.L. — DWES 1ª Evaluación
+#
+# Uso: doxygen Doxyfile
+# Genera la documentación en la carpeta /docs/html/
+# ===========================================================
+
+# ── Información del proyecto ────────────────────────────────
+PROJECT_NAME           = "Gestor de Tareas — Bunglebuild S.L."
+PROJECT_NUMBER         = 1.0
+PROJECT_BRIEF          = "Aplicacion web de gestion de incidencias y tareas. DWES 1a Evaluacion."
+OUTPUT_DIRECTORY       = docs
+
+# ── Archivos de entrada ─────────────────────────────────────
+INPUT                  = app/Http/Controllers \
+                         app/Models \
+                         app/Database \
+                         app/Providers \
+                         install
+INPUT_ENCODING         = UTF-8
+FILE_PATTERNS          = *.php
+RECURSIVE              = YES
+
+# Excluir vendor y otros directorios innecesarios
+EXCLUDE                = vendor \
+                         node_modules \
+                         storage \
+                         bootstrap/cache
+
+# ── Lenguaje ────────────────────────────────────────────────
+OUTPUT_LANGUAGE        = Spanish
+DOXYFILE_ENCODING      = UTF-8
+
+# ── Extracción de documentación ─────────────────────────────
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_METHODS  = YES
+SHOW_USED_FILES        = YES
+SHOW_FILES             = YES
+
+# ── Formato de comentarios ──────────────────────────────────
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = NO
+MULTILINE_CPP_IS_BRIEF = NO
+INHERIT_DOCS           = YES
+
+# ── Salida HTML ─────────────────────────────────────────────
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_FILE_EXTENSION    = .html
+HTML_COLORSTYLE        = DARK
+GENERATE_TREEVIEW      = YES
+TREEVIEW_WIDTH         = 250
+HTML_TIMESTAMP         = YES
+
+# ── Desactivar salidas que no necesitamos ───────────────────
+GENERATE_LATEX         = NO
+GENERATE_RTF           = NO
+GENERATE_MAN           = NO
+GENERATE_XML           = NO
+
+# ── Diagramas (desactivado: no requiere Graphviz) ───────────
+HAVE_DOT               = NO
+CLASS_DIAGRAMS         = NO
+
+# ── Opciones de visualización ───────────────────────────────
+SORT_MEMBER_DOCS       = YES
+SORT_BRIEF_DOCS        = YES
+SHOW_INCLUDE_FILES     = YES
+INLINE_SOURCES         = YES
+VERBATIM_HEADERS       = YES
