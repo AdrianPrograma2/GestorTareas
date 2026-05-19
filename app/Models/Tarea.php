@@ -5,53 +5,42 @@ namespace App\Models;
 use App\Database\ConexionDB;
 
 /**
- * Modelo Tarea - Gestiona todas las operaciones CRUD sobre la tabla 'tareas'.
+ * Modelo Tarea
+ * Gestiona todas las consultas SQL sobre la tabla 'tareas'.
+ * Usa el Singleton ConexionDB para acceder a la base de datos.
  *
- * Utiliza el patrón Singleton a través de ConexionDB para acceder
- * a la base de datos sin depender del ORM de Laravel.
- *
- * @author  Alumno DWES
- * @version 1.2
- * @date    2024-12-01
+ * @author Adrian
+ * @date 01/12/2024
+ * @version 1.0
  */
 class Tarea
 {
     /**
-     * Obtiene todas las tareas ordenadas por fecha de realización descendente.
-     *
-     * @return array Lista de objetos tarea.
+     * Devuelve todas las tareas ordenadas por fecha de realizacion descendente.
      */
-    public static function todas(): array
+    public static function todas()
     {
         $db = ConexionDB::getInstance();
-        return $db->ejecutar(
-            'SELECT * FROM tareas ORDER BY fecha_realizacion DESC'
-        )->fetchAll();
+        return $db->ejecutar('SELECT * FROM tareas ORDER BY fecha_realizacion DESC')->fetchAll();
     }
 
     /**
-     * Obtiene solo las tareas en estado Pendiente (estado = P).
-     *
-     * @return array Lista de tareas pendientes.
+     * Devuelve solo las tareas con estado Pendiente.
      */
-    public static function pendientes(): array
+    public static function pendientes()
     {
         $db = ConexionDB::getInstance();
-        return $db->ejecutar(
-            "SELECT * FROM tareas WHERE estado = 'P' ORDER BY fecha_realizacion DESC"
-        )->fetchAll();
+        return $db->ejecutar("SELECT * FROM tareas WHERE estado = 'P' ORDER BY fecha_realizacion DESC")->fetchAll();
     }
 
     /**
-     * Obtiene las tareas paginadas.
-     *
-     * @param  int $pagina    Número de página (empieza en 1).
-     * @param  int $porPagina Registros por página.
-     * @return array          Lista paginada de tareas.
+     * Devuelve las tareas de una pagina concreta.
+     * @param int $pagina    Numero de pagina
+     * @param int $porPagina Cuantas tareas por pagina
      */
-    public static function paginadas(int $pagina = 1, int $porPagina = 5): array
+    public static function paginadas($pagina = 1, $porPagina = 5)
     {
-        $db = ConexionDB::getInstance();
+        $db     = ConexionDB::getInstance();
         $offset = ($pagina - 1) * $porPagina;
         return $db->ejecutar(
             'SELECT * FROM tareas ORDER BY fecha_realizacion DESC LIMIT ? OFFSET ?',
@@ -61,37 +50,28 @@ class Tarea
 
     /**
      * Cuenta el total de tareas en la base de datos.
-     *
-     * @return int Total de tareas.
      */
-    public static function total(): int
+    public static function total()
     {
         $db = ConexionDB::getInstance();
-        return (int) $db->ejecutar('SELECT COUNT(*) as total FROM tareas')
-                        ->fetch()->total;
+        return (int)$db->ejecutar('SELECT COUNT(*) as total FROM tareas')->fetch()->total;
     }
 
     /**
      * Busca una tarea por su ID.
-     *
-     * @param  int $id Identificador de la tarea.
-     * @return object|false Objeto tarea o false si no existe.
+     * @param int $id
      */
-    public static function buscar(int $id)
+    public static function buscar($id)
     {
         $db = ConexionDB::getInstance();
-        return $db->ejecutar(
-            'SELECT * FROM tareas WHERE id = ?', [$id]
-        )->fetch();
+        return $db->ejecutar('SELECT * FROM tareas WHERE id = ?', [$id])->fetch();
     }
 
     /**
      * Inserta una nueva tarea en la base de datos.
-     *
-     * @param  array $datos Datos de la tarea a insertar.
-     * @return bool  True si se insertó correctamente.
+     * @param array $datos Array con los datos del formulario
      */
-    public static function crear(array $datos): bool
+    public static function crear($datos)
     {
         $db = ConexionDB::getInstance();
         $db->ejecutar(
@@ -116,17 +96,14 @@ class Tarea
                 $datos['operario'],
             ]
         );
-        return true;
     }
 
     /**
      * Actualiza los datos de una tarea existente.
-     *
-     * @param  int   $id    ID de la tarea a actualizar.
-     * @param  array $datos Nuevos datos.
-     * @return bool  True si se actualizó correctamente.
+     * @param int   $id    ID de la tarea
+     * @param array $datos Nuevos datos
      */
-    public static function actualizar(int $id, array $datos): bool
+    public static function actualizar($id, $datos)
     {
         $db = ConexionDB::getInstance();
         $db->ejecutar(
@@ -154,46 +131,32 @@ class Tarea
                 $id,
             ]
         );
-        return true;
     }
 
     /**
-     * Actualiza los campos que puede modificar un operario al completar tarea.
-     *
-     * @param  int         $id               ID de la tarea.
-     * @param  string      $estado           Nuevo estado.
-     * @param  string      $fechaRealizacion Fecha de realización.
-     * @param  string      $anotacionesPost  Anotaciones del operario.
-     * @param  string|null $ficheroResumen   Nombre del fichero guardado.
-     * @return bool True si se actualizó correctamente.
+     * Actualiza solo los campos que puede modificar el operario.
+     * @param int    $id               ID de la tarea
+     * @param string $estado           Nuevo estado
+     * @param string $fechaRealizacion Fecha de realizacion
+     * @param string $anotacionesPost  Anotaciones del operario
+     * @param string $ficheroResumen   Nombre del fichero adjunto (puede ser null)
      */
-    public static function completar(
-        int $id,
-        string $estado,
-        string $fechaRealizacion,
-        string $anotacionesPost,
-        ?string $ficheroResumen = null
-    ): bool {
+    public static function completar($id, $estado, $fechaRealizacion, $anotacionesPost, $ficheroResumen = null)
+    {
         $db = ConexionDB::getInstance();
         $db->ejecutar(
-            'UPDATE tareas SET estado=?, fecha_realizacion=?,
-             anotaciones_posteriores=?, fichero_resumen=?
-             WHERE id=?',
+            'UPDATE tareas SET estado=?, fecha_realizacion=?, anotaciones_posteriores=?, fichero_resumen=? WHERE id=?',
             [$estado, $fechaRealizacion, $anotacionesPost, $ficheroResumen, $id]
         );
-        return true;
     }
 
     /**
      * Elimina una tarea de la base de datos.
-     *
-     * @param  int $id ID de la tarea a eliminar.
-     * @return bool True si se eliminó correctamente.
+     * @param int $id
      */
-    public static function borrar(int $id): bool
+    public static function borrar($id)
     {
         $db = ConexionDB::getInstance();
         $db->ejecutar('DELETE FROM tareas WHERE id=?', [$id]);
-        return true;
     }
 }

@@ -5,29 +5,20 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Tarea;
 use App\Models\Usuario;
-use App\Http\Controllers\ConfigController;
 
 /**
- * TareaController - Controlador para la gestión de tareas/incidencias.
+ * Controlador de tareas
+ * Gestiona el CRUD de tareas: listar, ver, crear, editar, completar y borrar.
  *
- * Gestiona todas las operaciones CRUD: listar, ver, crear, editar,
- * completar y borrar tareas. Utiliza sesiones PHP nativas para el
- * control de acceso y diferenciación de roles.
- *
- * @author  Alumno DWES
- * @version 2.0
- * @date    2024-12-01
+ * @author Adrian
+ * @date 01/12/2024
+ * @version 1.0
  */
 class TareaController extends Controller
 {
-    /** @var int Número de tareas por página en el listado paginado. */
-    private const POR_PAGINA = 5;
-
     /**
-     * Verifica que el usuario esté autenticado mediante sesión PHP nativa.
-     * Si no lo está, redirige al login.
-     *
-     * @return \Illuminate\Http\RedirectResponse|null Redirección o null.
+     * Comprueba si el usuario ha iniciado sesion.
+     * Si no lo ha hecho redirige al login.
      */
     private function verificarSesion()
     {
@@ -38,42 +29,38 @@ class TareaController extends Controller
     }
 
     /**
-     * Verifica que el usuario autenticado tenga rol de administrador.
-     * Si no, redirige al listado con un mensaje de error.
-     *
-     * @return \Illuminate\Http\RedirectResponse|null Redirección o null.
+     * Comprueba si el usuario es administrador.
+     * Si no lo es redirige al listado con un error.
      */
     private function soloAdmin()
     {
-        if ($_SESSION['rol'] !== 'admin') {
-            return redirect('tareas')->with('error', 'Acceso restringido a administradores.');
+        if ($_SESSION['rol'] != 'admin') {
+            return redirect('tareas')->with('error', 'Solo los administradores pueden hacer esto.');
         }
         return null;
     }
 
     /**
-     * Devuelve el array de provincias españolas con sus códigos INE.
-     *
-     * @return array Mapa código => nombre de provincia.
+     * Devuelve el array de provincias con su codigo INE.
      */
-    private function provincias(): array
+    private function provincias()
     {
         return [
             ''   => '-- Selecciona provincia --',
             '02' => 'Albacete',      '03' => 'Alicante',
-            '04' => 'Almería',       '05' => 'Ávila',
+            '04' => 'Almeria',       '05' => 'Avila',
             '06' => 'Badajoz',       '07' => 'Baleares',
             '08' => 'Barcelona',     '09' => 'Burgos',
-            '10' => 'Cáceres',       '11' => 'Cádiz',
-            '12' => 'Castellón',     '13' => 'Ciudad Real',
-            '14' => 'Córdoba',       '15' => 'A Coruña',
+            '10' => 'Caceres',       '11' => 'Cadiz',
+            '12' => 'Castellon',     '13' => 'Ciudad Real',
+            '14' => 'Cordoba',       '15' => 'A Coruna',
             '16' => 'Cuenca',        '17' => 'Girona',
             '18' => 'Granada',       '19' => 'Guadalajara',
-            '20' => 'Guipúzcoa',     '21' => 'Huelva',
-            '22' => 'Huesca',        '23' => 'Jaén',
-            '24' => 'León',          '25' => 'Lleida',
+            '20' => 'Guipuzcoa',     '21' => 'Huelva',
+            '22' => 'Huesca',        '23' => 'Jaen',
+            '24' => 'Leon',          '25' => 'Lleida',
             '26' => 'La Rioja',      '27' => 'Lugo',
-            '28' => 'Madrid',        '29' => 'Málaga',
+            '28' => 'Madrid',        '29' => 'Malaga',
             '30' => 'Murcia',        '31' => 'Navarra',
             '32' => 'Ourense',       '33' => 'Asturias',
             '34' => 'Palencia',      '35' => 'Las Palmas',
@@ -90,118 +77,125 @@ class TareaController extends Controller
     }
 
     /**
-     * Valida los campos del formulario de tarea.
-     * Realiza validaciones de formato para NIF, teléfono, CP, email y fecha.
-     *
-     * @param  Request $r Objeto de la petición HTTP.
-     * @return array      Lista de mensajes de error (vacía si todo es correcto).
+     * Valida el NIF, NIE o CIF con expresiones regulares.
+     * @param string $valor
      */
-    private function validarCampos(Request $r): array
+    private function validarNifCif($valor)
+    {
+        // NIF: 8 digitos + 1 letra
+        if (preg_match('/^\d{8}[A-Za-z]$/', $valor)) {
+            return true;
+        }
+        // NIE: empieza por X, Y o Z
+        if (preg_match('/^[XYZxyz]\d{7}[A-Za-z]$/', $valor)) {
+            return true;
+        }
+        // CIF de empresa
+        if (preg_match('/^[ABCDEFGHJNPQRSUVWabcdefghjnpqrsuvw]\d{7}[A-Za-z0-9]$/', $valor)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Valida los campos del formulario de tarea.
+     * Devuelve un array asociativo con los errores por campo.
+     * @param Request $r
+     */
+    private function validarCampos(Request $r)
     {
         $errores = [];
 
-        // NIF / CIF
-        if (trim($r->nif) === '') {
+        // NIF obligatorio y con formato correcto
+        if (trim($r->nif) == '') {
             $errores['nif'] = 'El NIF/CIF es obligatorio.';
         } elseif (!$this->validarNifCif(trim($r->nif))) {
-            $errores['nif'] = 'El NIF/CIF no tiene un formato válido.';
+            $errores['nif'] = 'El NIF/CIF no tiene un formato valido.';
         }
 
-        // Persona de contacto
-        if (trim($r->persona_contacto) === '') {
+        // Persona de contacto obligatoria
+        if (trim($r->persona_contacto) == '') {
             $errores['persona_contacto'] = 'La persona de contacto es obligatoria.';
         }
 
-        // Descripción
-        if (trim($r->descripcion) === '') {
-            $errores['descripcion'] = 'La descripción es obligatoria.';
+        // Descripcion obligatoria
+        if (trim($r->descripcion) == '') {
+            $errores['descripcion'] = 'La descripcion es obligatoria.';
         }
 
-        // Correo electrónico
-        if (trim($r->email) === '') {
-            $errores['email'] = 'El correo electrónico es obligatorio.';
+        // Email obligatorio y con formato correcto
+        if (trim($r->email) == '') {
+            $errores['email'] = 'El correo electronico es obligatorio.';
         } elseif (!filter_var($r->email, FILTER_VALIDATE_EMAIL)) {
-            $errores['email'] = 'El correo electrónico no tiene un formato válido.';
+            $errores['email'] = 'El correo electronico no tiene un formato valido.';
         }
 
-        // Teléfono: solo números, espacios, guiones y +
-        if (trim($r->telefono) !== '' && !preg_match('/^[0-9\s\-\+]{7,15}$/', $r->telefono)) {
-            $errores['telefono'] = 'Solo números, espacios, guiones o +. Entre 7 y 15 caracteres.';
+        // Telefono: solo numeros, espacios y guiones (campo opcional)
+        if (trim($r->telefono) != '') {
+            if (!preg_match('/^[0-9\s\-\+]{7,15}$/', $r->telefono)) {
+                $errores['telefono'] = 'El telefono solo puede tener numeros, espacios o guiones.';
+            }
         }
 
-        // Código postal: 5 dígitos
-        if (trim($r->cp) !== '' && !preg_match('/^\d{5}$/', $r->cp)) {
-            $errores['cp'] = 'El código postal debe tener exactamente 5 dígitos.';
+        // Codigo postal: 5 digitos (campo opcional)
+        if (trim($r->cp) != '') {
+            if (!preg_match('/^\d{5}$/', $r->cp)) {
+                $errores['cp'] = 'El codigo postal debe tener 5 digitos.';
+            }
         }
 
-        // Provincia
-        if (trim($r->provincia) === '') {
-            $errores['provincia'] = 'Debe seleccionar una provincia.';
+        // Provincia obligatoria
+        if (trim($r->provincia) == '') {
+            $errores['provincia'] = 'Debes seleccionar una provincia.';
         }
 
-        // Fecha de realización: debe ser posterior a hoy
-        if (trim($r->fecha_realizacion) !== '') {
-            $fecha = \DateTime::createFromFormat('Y-m-d', $r->fecha_realizacion);
-            $hoy   = new \DateTime('today');
-            if (!$fecha || $fecha < $hoy) {
-                $errores['fecha_realizacion'] = 'La fecha debe ser válida y posterior a la fecha actual.';
+        // Fecha de realizacion: debe ser posterior a hoy
+        if (trim($r->fecha_realizacion) != '') {
+            $fecha = strtotime($r->fecha_realizacion);
+            $hoy   = strtotime('today');
+            if ($fecha === false || $fecha <= $hoy) {
+                $errores['fecha_realizacion'] = 'La fecha debe ser valida y posterior a hoy.';
             }
         }
 
         return $errores;
     }
 
-    /**
-     * Valida el formato de un NIF, CIF o NIE español de forma básica.
-     *
-     * @param  string $valor El valor a validar.
-     * @return bool True si el formato es aceptable.
-     */
-    private function validarNifCif(string $valor): bool
-    {
-        // NIF: 8 dígitos + 1 letra
-        if (preg_match('/^\d{8}[A-Za-z]$/', $valor)) return true;
-        // NIE: X/Y/Z + 7 dígitos + letra
-        if (preg_match('/^[XYZxyz]\d{7}[A-Za-z]$/', $valor)) return true;
-        // CIF: letra + 7 dígitos + letra/dígito
-        if (preg_match('/^[ABCDEFGHJNPQRSUVWabcdefghjnpqrsuvw]\d{7}[A-Za-z0-9]$/', $valor)) return true;
-        return false;
-    }
-
-    /* ================================================================
-       LISTADO
-       ================================================================ */
+    // -------------------------------------------------------
+    // LISTADO
+    // -------------------------------------------------------
 
     /**
      * Muestra el listado paginado de todas las tareas.
-     * Solo accesible si el usuario está autenticado.
-     *
-     * @param  Request $request Petición HTTP (incluye parámetro 'pagina').
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * @param Request $request
      */
     public function index(Request $request)
     {
-        if ($redir = $this->verificarSesion()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
 
-        $cfg       = ConfigController::leerConfig();
-        $porPagina = max(1, (int) ($cfg['por_pagina'] ?? self::POR_PAGINA));
+        // Leer cuantas tareas por pagina desde la configuracion
+        $config    = require base_path('app/config.php');
+        $porPagina = (int)($config['por_pagina'] ?? 5);
+        if ($porPagina < 1) $porPagina = 5;
 
-        $pagina    = max(1, (int) $request->get('pagina', 1));
+        $pagina = (int)$request->get('pagina', 1);
+        if ($pagina < 1) $pagina = 1;
+
         $total     = Tarea::total();
-        $totalPags = (int) ceil($total / $porPagina);
+        $totalPags = (int)ceil($total / $porPagina);
         $tareas    = Tarea::paginadas($pagina, $porPagina);
 
         return view('tareas.lista', compact('tareas', 'pagina', 'totalPags', 'total'));
     }
 
     /**
-     * Muestra únicamente las tareas con estado Pendiente.
-     *
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * Muestra solo las tareas con estado Pendiente.
      */
     public function pendientes()
     {
-        if ($redir = $this->verificarSesion()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
 
         $tareas    = Tarea::pendientes();
         $pagina    = 1;
@@ -211,48 +205,58 @@ class TareaController extends Controller
         return view('tareas.lista', compact('tareas', 'pagina', 'totalPags', 'total'));
     }
 
-    /* ================================================================
-       VER DETALLE
-       ================================================================ */
+    // -------------------------------------------------------
+    // VER DETALLE
+    // -------------------------------------------------------
 
     /**
-     * Muestra la información completa y detallada de una tarea.
-     *
-     * @param  int $id ID de la tarea a mostrar.
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * Muestra la informacion completa de una tarea.
+     * @param int $id
      */
-    public function ver(int $id)
+    public function ver($id)
     {
-        if ($redir = $this->verificarSesion()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
 
         $tarea = Tarea::buscar($id);
         return view('tareas.ver', compact('tarea'));
     }
 
-    /* ================================================================
-       CREAR
-       ================================================================ */
+    // -------------------------------------------------------
+    // CREAR
+    // -------------------------------------------------------
 
     /**
      * Muestra el formulario para crear una nueva tarea.
-     * Solo accesible para administradores.
-     *
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * Solo pueden acceder los administradores.
      */
     public function crear()
     {
-        if ($redir = $this->verificarSesion()) return $redir;
-        if ($redir = $this->soloAdmin()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
 
-        $cfg   = ConfigController::leerConfig();
+        $redir = $this->soloAdmin();
+        if ($redir != null) return $redir;
+
+        // Leer valores por defecto desde la configuracion
+        $config = require base_path('app/config.php');
+
         $tarea = (object)[
-            'nif' => '', 'persona_contacto' => '', 'telefono' => '',
-            'email' => '', 'descripcion' => '', 'anotaciones_anteriores' => '',
-            'direccion' => '', 'cp' => '',
-            'poblacion' => $cfg['poblacion_defecto'] ?? '',
-            'provincia' => $cfg['provincia_defecto'] ?? '',
-            'estado' => 'P', 'fecha_realizacion' => '', 'operario' => ''
+            'nif'                   => '',
+            'persona_contacto'      => '',
+            'telefono'              => '',
+            'email'                 => '',
+            'descripcion'           => '',
+            'anotaciones_anteriores'=> '',
+            'direccion'             => '',
+            'poblacion'             => $config['poblacion_defecto'] ?? '',
+            'cp'                    => '',
+            'provincia'             => $config['provincia_defecto'] ?? '',
+            'estado'                => 'P',
+            'fecha_realizacion'     => '',
+            'operario'              => '',
         ];
+
         $provincias = $this->provincias();
         $operarios  = Usuario::operarios();
 
@@ -260,21 +264,21 @@ class TareaController extends Controller
     }
 
     /**
-     * Procesa el formulario de creación y guarda la nueva tarea.
-     * Realiza validación completa en servidor antes de guardar.
-     *
-     * @param  Request $r Petición HTTP con los datos del formulario.
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * Guarda la nueva tarea despues de validar los datos.
+     * @param Request $r
      */
     public function guardar(Request $r)
     {
-        if ($redir = $this->verificarSesion()) return $redir;
-        if ($redir = $this->soloAdmin()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
+
+        $redir = $this->soloAdmin();
+        if ($redir != null) return $redir;
 
         $errores = $this->validarCampos($r);
 
         if (!empty($errores)) {
-            $tarea      = (object) $r->all();
+            $tarea      = (object)$r->all();
             $provincias = $this->provincias();
             $operarios  = Usuario::operarios();
             return view('tareas.formulario', compact('tarea', 'provincias', 'operarios', 'errores'));
@@ -284,21 +288,21 @@ class TareaController extends Controller
         return redirect('tareas')->with('exito', 'Tarea creada correctamente.');
     }
 
-    /* ================================================================
-       EDITAR
-       ================================================================ */
+    // -------------------------------------------------------
+    // EDITAR
+    // -------------------------------------------------------
 
     /**
-     * Muestra el formulario de edición con los datos actuales de la tarea.
-     * Solo accesible para administradores.
-     *
-     * @param  int $id ID de la tarea a editar.
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * Muestra el formulario de edicion con los datos actuales.
+     * @param int $id
      */
-    public function editar(int $id)
+    public function editar($id)
     {
-        if ($redir = $this->verificarSesion()) return $redir;
-        if ($redir = $this->soloAdmin()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
+
+        $redir = $this->soloAdmin();
+        if ($redir != null) return $redir;
 
         $tarea      = Tarea::buscar($id);
         $provincias = $this->provincias();
@@ -308,75 +312,71 @@ class TareaController extends Controller
     }
 
     /**
-     * Procesa el formulario de edición y actualiza la tarea en la BD.
-     *
-     * @param  Request $r Petición HTTP con los nuevos datos.
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * Actualiza la tarea con los nuevos datos del formulario.
+     * @param Request $r
      */
     public function actualizar(Request $r)
     {
-        if ($redir = $this->verificarSesion()) return $redir;
-        if ($redir = $this->soloAdmin()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
+
+        $redir = $this->soloAdmin();
+        if ($redir != null) return $redir;
 
         $errores = $this->validarCampos($r);
 
         if (!empty($errores)) {
-            $tarea      = (object) $r->all();
+            $tarea      = (object)$r->all();
             $provincias = $this->provincias();
             $operarios  = Usuario::operarios();
             return view('tareas.formulario_editar', compact('tarea', 'provincias', 'operarios', 'errores'));
         }
 
-        Tarea::actualizar((int) $r->id, $r->all());
+        Tarea::actualizar((int)$r->id, $r->all());
         return redirect('tareas')->with('exito', 'Tarea actualizada correctamente.');
     }
 
-    /* ================================================================
-       COMPLETAR (operario)
-       ================================================================ */
+    // -------------------------------------------------------
+    // COMPLETAR (operario)
+    // -------------------------------------------------------
 
     /**
-     * Muestra el formulario para que un operario complete/cierre una tarea.
-     * Solo muestra los campos que puede modificar el operario.
-     *
-     * @param  int $id ID de la tarea a completar.
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * Muestra el formulario para que el operario complete la tarea.
+     * @param int $id
      */
-    public function completar(int $id)
+    public function completar($id)
     {
-        if ($redir = $this->verificarSesion()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
 
         $tarea = Tarea::buscar($id);
         return view('tareas.completar', compact('tarea'));
     }
 
     /**
-     * Procesa el formulario de completar: actualiza estado, anotaciones
-     * y guarda el fichero adjunto en el servidor.
-     *
-     * El fichero se guarda en storage/app/adjuntos/ con el nombre
-     * del ID de la tarea para facilitar su recuperación.
-     *
-     * @param  Request $r Petición HTTP con datos del operario.
-     * @return \Illuminate\Http\RedirectResponse
+     * Guarda los cambios del operario: estado, anotaciones y fichero adjunto.
+     * @param Request $r
      */
     public function completarGuardar(Request $r)
     {
-        if ($redir = $this->verificarSesion()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
 
         $ficheroNombre = null;
 
-        // Gestión de fichero adjunto
+        // Si se ha subido un fichero lo guardamos en storage/app/adjuntos
         if ($r->hasFile('fichero_resumen') && $r->file('fichero_resumen')->isValid()) {
-            $carpeta       = storage_path('app/adjuntos');
-            if (!is_dir($carpeta)) mkdir($carpeta, 0755, true);
+            $carpeta = storage_path('app/adjuntos');
+            if (!is_dir($carpeta)) {
+                mkdir($carpeta, 0755, true);
+            }
             $extension     = $r->file('fichero_resumen')->getClientOriginalExtension();
             $ficheroNombre = $r->id . '.' . $extension;
             $r->file('fichero_resumen')->move($carpeta, $ficheroNombre);
         }
 
         Tarea::completar(
-            (int) $r->id,
+            (int)$r->id,
             $r->estado,
             $r->fecha_realizacion ?? '',
             $r->anotaciones_posteriores ?? '',
@@ -386,70 +386,75 @@ class TareaController extends Controller
         return redirect('tareas')->with('exito', 'Tarea completada correctamente.');
     }
 
-    /* ================================================================
-       DESCARGA DE ADJUNTOS
-       ================================================================ */
+    // -------------------------------------------------------
+    // DESCARGA DE ADJUNTO
+    // -------------------------------------------------------
 
     /**
-     * Sirve el fichero adjunto de una tarea de forma protegida.
-     * Solo accesible si el usuario ha iniciado sesión.
-     * El fichero nunca es accesible directamente desde una URL pública.
-     *
-     * @param  int $id ID de la tarea cuyo adjunto se descarga.
-     * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
+     * Descarga el fichero adjunto de una tarea.
+     * Solo accesible si el usuario ha iniciado sesion.
+     * El fichero no es accesible desde una URL publica.
+     * @param int $id
      */
-    public function descargarAdjunto(int $id)
+    public function descargarAdjunto($id)
     {
-        if ($redir = $this->verificarSesion()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
 
         $tarea = Tarea::buscar($id);
 
         if (!$tarea || !$tarea->fichero_resumen) {
-            return redirect('tareas')->with('error', 'No hay fichero adjunto para esta tarea.');
+            return redirect('tareas')->with('error', 'Esta tarea no tiene fichero adjunto.');
         }
 
         $ruta = storage_path('app/adjuntos/' . $tarea->fichero_resumen);
 
         if (!file_exists($ruta)) {
-            return redirect('tareas')->with('error', 'El fichero adjunto no se encontró en el servidor.');
+            return redirect('tareas')->with('error', 'El fichero no se encontro en el servidor.');
         }
 
-        return response()->download($ruta, $tarea->fichero_resumen);
+        // Enviamos el fichero con cabeceras HTTP para forzar la descarga
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . $tarea->fichero_resumen . '"');
+        header('Content-Length: ' . filesize($ruta));
+        readfile($ruta);
+        exit;
     }
 
-    /* ================================================================
-       BORRAR
-       ================================================================ */
+    // -------------------------------------------------------
+    // BORRAR
+    // -------------------------------------------------------
 
     /**
-     * Muestra la página de confirmación antes de borrar una tarea.
-     * Solo accesible para administradores.
-     *
-     * @param  int $id ID de la tarea a borrar.
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * Muestra la pagina de confirmacion antes de borrar.
+     * @param int $id
      */
-    public function borrar(int $id)
+    public function borrar($id)
     {
-        if ($redir = $this->verificarSesion()) return $redir;
-        if ($redir = $this->soloAdmin()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
+
+        $redir = $this->soloAdmin();
+        if ($redir != null) return $redir;
 
         $tarea = Tarea::buscar($id);
         return view('tareas.formulario_borrar', compact('tarea'));
     }
 
     /**
-     * Ejecuta el borrado definitivo de la tarea tras confirmación del usuario.
-     * La confirmación se realiza en el servidor (no en JavaScript).
-     *
-     * @param  Request $r Petición HTTP con el ID de la tarea.
-     * @return \Illuminate\Http\RedirectResponse
+     * Borra definitivamente la tarea tras la confirmacion del usuario.
+     * La confirmacion se hace en el servidor, no con JavaScript.
+     * @param Request $r
      */
     public function borrarConfirmar(Request $r)
     {
-        if ($redir = $this->verificarSesion()) return $redir;
-        if ($redir = $this->soloAdmin()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
 
-        Tarea::borrar((int) $r->id);
+        $redir = $this->soloAdmin();
+        if ($redir != null) return $redir;
+
+        Tarea::borrar((int)$r->id);
         return redirect('tareas')->with('exito', 'Tarea eliminada correctamente.');
     }
 }

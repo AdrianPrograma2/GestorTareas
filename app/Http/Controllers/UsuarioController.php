@@ -6,24 +6,18 @@ use Illuminate\Http\Request;
 use App\Models\Usuario;
 
 /**
- * UsuarioController - Gestiona login, logout y CRUD de usuarios.
+ * Controlador de usuarios
+ * Gestiona el login, logout y el CRUD de usuarios (solo admin).
+ * Usa sesiones PHP nativas y cookies para recordar al usuario.
  *
- * Usa $_SESSION de PHP nativo (NO el sistema de sesiones de Laravel).
- * Implementa cookies para recordar el usuario y opcionalmente las credenciales.
- *
- * @author  Alumno DWES
- * @version 2.0
- * @date    2024-12-01
+ * @author Adrian
+ * @date 01/12/2024
+ * @version 1.0
  */
 class UsuarioController extends Controller
 {
-    /** @var int Días que se recuerdan las credenciales con "Recordarme". */
-    private const DIAS_RECORDAR = 3;
-
     /**
-     * Verifica que el usuario esté autenticado.
-     *
-     * @return \Illuminate\Http\RedirectResponse|null
+     * Comprueba si el usuario ha iniciado sesion.
      */
     private function verificarSesion()
     {
@@ -34,44 +28,41 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Verifica que el usuario sea administrador.
-     *
-     * @return \Illuminate\Http\RedirectResponse|null
+     * Comprueba si el usuario es administrador.
      */
     private function soloAdmin()
     {
-        if (($_SESSION['rol'] ?? '') !== 'admin') {
+        if ($_SESSION['rol'] != 'admin') {
             return redirect('tareas')->with('error', 'Solo los administradores pueden gestionar usuarios.');
         }
         return null;
     }
 
-    /* ================================================================
-       LOGIN / LOGOUT
-       ================================================================ */
+    // -------------------------------------------------------
+    // LOGIN / LOGOUT
+    // -------------------------------------------------------
 
     /**
-     * Muestra el formulario de inicio de sesión.
-     * Si ya hay sesión activa redirige al listado de tareas.
-     * Lee la cookie de usuario recordado para prerellenar el campo.
-     *
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * Muestra el formulario de login.
+     * Si ya hay sesion activa va directo al listado de tareas.
+     * Lee la cookie del ultimo usuario para rellenar el campo.
      */
     public function loginForm()
     {
+        // Si ya esta logueado no tiene que volver a entrar
         if (isset($_SESSION['usuario'])) {
             return redirect('tareas');
         }
 
-        // Leer cookie de usuario recordado (R4.4)
-        $usuarioRecordado = $_COOKIE['ultimo_usuario'] ?? '';
+        // Recuperamos el ultimo usuario de la cookie si existe
+        $usuarioRecordado = '';
+        if (isset($_COOKIE['ultimo_usuario'])) {
+            $usuarioRecordado = $_COOKIE['ultimo_usuario'];
+        }
 
-        // Si hay credenciales guardadas en cookie, login automático (R4.5)
+        // Login automatico si tiene las credenciales guardadas en cookie (recordarme 3 dias)
         if (isset($_COOKIE['recordar_usuario']) && isset($_COOKIE['recordar_pass'])) {
-            $user = Usuario::buscarPorCredenciales(
-                $_COOKIE['recordar_usuario'],
-                $_COOKIE['recordar_pass']
-            );
+            $user = Usuario::buscarPorCredenciales($_COOKIE['recordar_usuario'], $_COOKIE['recordar_pass']);
             if ($user) {
                 $_SESSION['usuario']    = $user->usuario;
                 $_SESSION['nombre']     = $user->nombre;
@@ -86,41 +77,35 @@ class UsuarioController extends Controller
 
     /**
      * Procesa el formulario de login.
-     * Inicia la sesión PHP nativa, guarda cookie con el nombre de usuario
-     * y opcionalmente las credenciales si se marcó "Recordarme".
-     *
-     * @param  Request $request Petición HTTP con usuario, password y recordar.
-     * @return \Illuminate\Http\RedirectResponse
+     * Inicia la sesion y guarda cookies segun la opcion elegida.
+     * @param Request $request
      */
     public function login(Request $request)
     {
-        $user = Usuario::buscarPorCredenciales(
-            $request->usuario,
-            $request->password
-        );
+        $user = Usuario::buscarPorCredenciales($request->usuario, $request->password);
 
         if (!$user) {
-            // Guardar igualmente el nombre en cookie aunque falle (R4.4)
+            // Aunque falle guardamos el nombre en cookie para recordarlo
             setcookie('ultimo_usuario', $request->usuario, time() + (86400 * 30), '/');
-            return back()->with('error', 'Usuario o contraseña incorrectos.');
+            return back()->with('error', 'Usuario o contrasena incorrectos.');
         }
 
-        // Iniciar sesión PHP nativa (R4.1)
+        // Iniciamos la sesion PHP con los datos del usuario
         $_SESSION['usuario']    = $user->usuario;
         $_SESSION['nombre']     = $user->nombre;
         $_SESSION['rol']        = $user->rol;
         $_SESSION['hora_login'] = date('H:i:s');
 
-        // Cookie: recordar último usuario en el campo de login (R4.4)
+        // Cookie para recordar el ultimo usuario en el campo de login
         setcookie('ultimo_usuario', $user->usuario, time() + (86400 * 30), '/');
 
-        // Cookie: recordar credenciales 3 días si se marcó el checkbox (R4.5)
+        // Si marco el checkbox "recordarme" guardamos las credenciales 3 dias
         if ($request->has('recordar') && $request->recordar == '1') {
-            $expira = time() + (86400 * self::DIAS_RECORDAR);
+            $expira = time() + (86400 * 3);
             setcookie('recordar_usuario', $user->usuario, $expira, '/');
             setcookie('recordar_pass',    $user->password, $expira, '/');
         } else {
-            // Borrar cookies de credenciales si no se marcó
+            // Borramos las cookies de credenciales si no marco el checkbox
             setcookie('recordar_usuario', '', time() - 3600, '/');
             setcookie('recordar_pass',    '', time() - 3600, '/');
         }
@@ -129,9 +114,7 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Cierra la sesión del usuario actual y borra las cookies de credenciales.
-     *
-     * @return \Illuminate\Http\RedirectResponse
+     * Cierra la sesion del usuario y borra las cookies.
      */
     public function logout()
     {
@@ -141,20 +124,20 @@ class UsuarioController extends Controller
         return redirect('login');
     }
 
-    /* ================================================================
-       CRUD DE USUARIOS (solo admin) - R4.2
-       ================================================================ */
+    // -------------------------------------------------------
+    // CRUD DE USUARIOS (solo admin)
+    // -------------------------------------------------------
 
     /**
-     * Lista todos los usuarios del sistema.
-     * Solo accesible para administradores.
-     *
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * Muestra la lista de todos los usuarios del sistema.
      */
     public function listar()
     {
-        if ($redir = $this->verificarSesion()) return $redir;
-        if ($redir = $this->soloAdmin()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
+
+        $redir = $this->soloAdmin();
+        if ($redir != null) return $redir;
 
         $usuarios = Usuario::todos();
         return view('usuarios.lista', compact('usuarios'));
@@ -162,34 +145,35 @@ class UsuarioController extends Controller
 
     /**
      * Muestra el formulario para crear un nuevo usuario.
-     * Solo accesible para administradores.
-     *
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
      */
     public function crear()
     {
-        if ($redir = $this->verificarSesion()) return $redir;
-        if ($redir = $this->soloAdmin()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
+
+        $redir = $this->soloAdmin();
+        if ($redir != null) return $redir;
 
         return view('usuarios.formulario', ['usuario' => null, 'errores' => []]);
     }
 
     /**
-     * Procesa el formulario y guarda el nuevo usuario en la BD.
-     *
-     * @param  Request $r Petición HTTP con los datos del usuario.
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * Guarda el nuevo usuario en la base de datos.
+     * @param Request $r
      */
     public function guardar(Request $r)
     {
-        if ($redir = $this->verificarSesion()) return $redir;
-        if ($redir = $this->soloAdmin()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
+
+        $redir = $this->soloAdmin();
+        if ($redir != null) return $redir;
 
         $errores = [];
-        if (trim($r->nombre)   === '') $errores[] = 'El nombre es obligatorio.';
-        if (trim($r->usuario)  === '') $errores[] = 'El nombre de usuario es obligatorio.';
-        if (trim($r->password) === '') $errores[] = 'La contraseña es obligatoria.';
-        if (!in_array($r->rol, ['admin', 'operario'])) $errores[] = 'El rol no es válido.';
+        if (trim($r->nombre)   == '') $errores[] = 'El nombre es obligatorio.';
+        if (trim($r->usuario)  == '') $errores[] = 'El nombre de usuario es obligatorio.';
+        if (trim($r->password) == '') $errores[] = 'La contrasena es obligatoria.';
+        if ($r->rol != 'admin' && $r->rol != 'operario') $errores[] = 'El rol no es valido.';
 
         if (!empty($errores)) {
             return view('usuarios.formulario', ['usuario' => (object)$r->all(), 'errores' => $errores]);
@@ -200,38 +184,40 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Muestra el formulario de edición de un usuario existente.
-     *
-     * @param  int $id ID del usuario a editar.
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * Muestra el formulario de edicion de un usuario.
+     * @param int $id
      */
-    public function editar(int $id)
+    public function editar($id)
     {
-        if ($redir = $this->verificarSesion()) return $redir;
-        if ($redir = $this->soloAdmin()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
+
+        $redir = $this->soloAdmin();
+        if ($redir != null) return $redir;
 
         $usuario = Usuario::buscarPorId($id);
-        return view('usuarios.formulario', compact('usuario') + ['errores' => []]);
+        return view('usuarios.formulario', ['usuario' => $usuario, 'errores' => []]);
     }
 
     /**
-     * Procesa el formulario de edición y actualiza el usuario.
-     *
-     * @param  Request $r Petición HTTP con los nuevos datos.
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * Actualiza los datos del usuario.
+     * @param Request $r
      */
     public function actualizar(Request $r)
     {
-        if ($redir = $this->verificarSesion()) return $redir;
-        if ($redir = $this->soloAdmin()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
+
+        $redir = $this->soloAdmin();
+        if ($redir != null) return $redir;
 
         $errores = [];
-        if (trim($r->nombre)  === '') $errores[] = 'El nombre es obligatorio.';
-        if (trim($r->usuario) === '') $errores[] = 'El nombre de usuario es obligatorio.';
-        if (!in_array($r->rol, ['admin', 'operario'])) $errores[] = 'El rol no es válido.';
+        if (trim($r->nombre)  == '') $errores[] = 'El nombre es obligatorio.';
+        if (trim($r->usuario) == '') $errores[] = 'El nombre de usuario es obligatorio.';
+        if ($r->rol != 'admin' && $r->rol != 'operario') $errores[] = 'El rol no es valido.';
 
         if (!empty($errores)) {
-            $usuario = (object) $r->all();
+            $usuario = (object)$r->all();
             return view('usuarios.formulario', compact('usuario', 'errores'));
         }
 
@@ -240,18 +226,21 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Elimina un usuario de la base de datos.
-     * No permite borrar el usuario actualmente autenticado.
-     *
-     * @param  int $id ID del usuario a eliminar.
-     * @return \Illuminate\Http\RedirectResponse
+     * Elimina un usuario. No se puede borrar el usuario que esta logueado.
+     * @param int $id
      */
-    public function borrar(int $id)
+    public function borrar($id)
     {
-        if ($redir = $this->verificarSesion()) return $redir;
-        if ($redir = $this->soloAdmin()) return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
 
-        if ($_SESSION['usuario'] === Usuario::buscarPorId($id)->usuario ?? '') {
+        $redir = $this->soloAdmin();
+        if ($redir != null) return $redir;
+
+        $usuario = Usuario::buscarPorId($id);
+
+        // No podemos borrar nuestro propio usuario
+        if ($usuario && $usuario->usuario == $_SESSION['usuario']) {
             return redirect('usuarios')->with('error', 'No puedes eliminar tu propio usuario.');
         }
 

@@ -5,25 +5,23 @@ namespace App\Models;
 use App\Database\ConexionDB;
 
 /**
- * Modelo Usuario - Gestiona las operaciones CRUD sobre la tabla 'usuarios'.
+ * Modelo Usuario
+ * Gestiona las consultas SQL sobre la tabla 'usuarios'.
+ * Usa el Singleton ConexionDB para acceder a la base de datos.
  *
- * Utiliza el patrón Singleton (ConexionDB) para el acceso a datos.
- * No usa el ORM de Laravel ni su sistema de autenticación.
- *
- * @author  Alumno DWES
- * @version 1.2
- * @date    2024-12-01
+ * @author Adrian
+ * @date 01/12/2024
+ * @version 1.0
  */
 class Usuario
 {
     /**
-     * Busca un usuario por sus credenciales (usuario y contraseña).
-     *
-     * @param  string $usuario  Nombre de usuario.
-     * @param  string $password Contraseña en texto plano.
-     * @return object|false Objeto usuario o false si no existe.
+     * Busca un usuario por su nombre de usuario y contrasena.
+     * Devuelve el objeto usuario o false si no existe.
+     * @param string $usuario
+     * @param string $password
      */
-    public static function buscarPorCredenciales(string $usuario, string $password)
+    public static function buscarPorCredenciales($usuario, $password)
     {
         $db = ConexionDB::getInstance();
         return $db->ejecutar(
@@ -33,105 +31,93 @@ class Usuario
     }
 
     /**
-     * Obtiene todos los usuarios registrados en el sistema.
-     *
-     * @return array Lista de objetos usuario.
+     * Devuelve todos los usuarios ordenados por nombre.
      */
-    public static function todos(): array
+    public static function todos()
     {
         $db = ConexionDB::getInstance();
         return $db->ejecutar('SELECT * FROM usuarios ORDER BY nombre')->fetchAll();
     }
 
     /**
-     * Obtiene solo los usuarios con rol de administrador.
-     *
-     * @return array Lista de administradores.
+     * Devuelve solo los usuarios con rol administrador.
      */
-    public static function admins(): array
+    public static function admins()
     {
         $db = ConexionDB::getInstance();
-        return $db->ejecutar(
-            "SELECT * FROM usuarios WHERE rol = 'admin' ORDER BY nombre"
-        )->fetchAll();
+        return $db->ejecutar("SELECT * FROM usuarios WHERE rol = 'admin' ORDER BY nombre")->fetchAll();
     }
 
     /**
-     * Obtiene solo los usuarios con rol de operario.
-     *
-     * @return array Lista de operarios.
+     * Devuelve solo los usuarios con rol operario.
      */
-    public static function operarios(): array
+    public static function operarios()
     {
         $db = ConexionDB::getInstance();
-        return $db->ejecutar(
-            "SELECT * FROM usuarios WHERE rol = 'operario' ORDER BY nombre"
-        )->fetchAll();
+        return $db->ejecutar("SELECT * FROM usuarios WHERE rol = 'operario' ORDER BY nombre")->fetchAll();
     }
 
     /**
      * Busca un usuario por su ID.
-     *
-     * @param  int $id ID del usuario.
-     * @return object|false Objeto usuario o false si no existe.
+     * @param int $id
      */
-    public static function buscarPorId(int $id)
+    public static function buscarPorId($id)
     {
         $db = ConexionDB::getInstance();
-        return $db->ejecutar(
-            'SELECT * FROM usuarios WHERE id = ?', [$id]
-        )->fetch();
+        return $db->ejecutar('SELECT * FROM usuarios WHERE id = ?', [$id])->fetch();
     }
 
     /**
      * Crea un nuevo usuario en la base de datos.
-     *
-     * @param  string $nombre   Nombre completo.
-     * @param  string $usuario  Nombre de usuario (login).
-     * @param  string $password Contraseña en texto plano.
-     * @param  string $rol      Rol del usuario: 'admin' u 'operario'.
-     * @return bool True si se creó correctamente.
+     * @param string $nombre
+     * @param string $usuario
+     * @param string $password
+     * @param string $rol
      */
-    public static function crear(string $nombre, string $usuario, string $password, string $rol): bool
+    public static function crear($nombre, $usuario, $password, $rol)
     {
         $db = ConexionDB::getInstance();
         $db->ejecutar(
             'INSERT INTO usuarios (nombre, usuario, password, rol) VALUES (?,?,?,?)',
             [$nombre, $usuario, $password, $rol]
         );
-        return true;
     }
 
     /**
-     * Elimina un usuario de la base de datos.
-     *
-     * @param  int $id ID del usuario a eliminar.
-     * @return bool True si se eliminó correctamente.
+     * Elimina un usuario por su ID.
+     * @param int $id
      */
-    public static function borrar(int $id): bool
+    public static function borrar($id)
     {
         $db = ConexionDB::getInstance();
         $db->ejecutar('DELETE FROM usuarios WHERE id=?', [$id]);
-        return true;
     }
 
     /**
-     * Actualiza el nombre, usuario y contraseña de un usuario existente.
-     *
-     * @param  int    $id       ID del usuario.
-     * @param  string $nombre   Nuevo nombre.
-     * @param  string $usuario  Nuevo nombre de usuario.
-     * @param  string $password Nueva contraseña.
-     * @param  string $rol      Nuevo rol.
-     * @return bool True si se actualizó correctamente.
+     * Actualiza los datos de un usuario.
+     * Si la contrasena viene vacia no se cambia.
+     * @param int    $id
+     * @param string $nombre
+     * @param string $usuario
+     * @param string $password
+     * @param string $rol
      */
-    public static function actualizar(int $id, string $nombre, string $usuario, string $password, string $rol): bool
+    public static function actualizar($id, $nombre, $usuario, $password, $rol)
     {
         $db = ConexionDB::getInstance();
-        $db->ejecutar(
-            'UPDATE usuarios SET nombre=?, usuario=?, password=?, rol=? WHERE id=?',
-            [$nombre, $usuario, $password, $rol, $id]
-        );
-        return true;
+
+        if ($password != '') {
+            // Si mando contrasena nueva la actualizamos
+            $db->ejecutar(
+                'UPDATE usuarios SET nombre=?, usuario=?, password=?, rol=? WHERE id=?',
+                [$nombre, $usuario, $password, $rol, $id]
+            );
+        } else {
+            // Si no mando contrasena no la tocamos
+            $db->ejecutar(
+                'UPDATE usuarios SET nombre=?, usuario=?, rol=? WHERE id=?',
+                [$nombre, $usuario, $rol, $id]
+            );
+        }
     }
 }

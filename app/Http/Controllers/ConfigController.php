@@ -5,25 +5,18 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 
 /**
- * ConfigController - Gestiona el panel de configuración de la aplicación.
+ * Controlador de configuracion
+ * Permite al administrador cambiar parametros de la aplicacion.
+ * Los valores se guardan en el fichero app/config.php.
  *
- * Permite al administrador modificar parámetros de funcionamiento
- * (tareas por página, provincia y población por defecto) sin tocar el código.
- * Los valores se persisten en app/config.php, que la aplicación lee al arrancar.
- *
- * @author  Alumno DWES
+ * @author Adrian
+ * @date 01/12/2024
  * @version 1.0
- * @date    2024-12-01
  */
 class ConfigController extends Controller
 {
-    /** @var string Ruta absoluta al fichero de configuración de la app. */
-    private const RUTA_CONFIG = __DIR__ . '/../../config.php';
-
     /**
-     * Verifica que el usuario esté autenticado.
-     *
-     * @return \Illuminate\Http\RedirectResponse|null
+     * Comprueba si el usuario ha iniciado sesion.
      */
     private function verificarSesion()
     {
@@ -34,25 +27,21 @@ class ConfigController extends Controller
     }
 
     /**
-     * Verifica que el usuario sea administrador.
-     *
-     * @return \Illuminate\Http\RedirectResponse|null
+     * Comprueba si el usuario es administrador.
      */
     private function soloAdmin()
     {
-        if (($_SESSION['rol'] ?? '') !== 'admin') {
-            return redirect('tareas')->with('error', 'Solo los administradores pueden acceder a la configuración.');
+        if ($_SESSION['rol'] != 'admin') {
+            return redirect('tareas')->with('error', 'Solo los administradores pueden acceder a la configuracion.');
         }
         return null;
     }
 
     /**
-     * Lee el fichero app/config.php y devuelve el array de configuración.
-     * Si el fichero no existe o es inválido, devuelve los valores por defecto.
-     *
-     * @return array Configuración actual de la aplicación.
+     * Lee el fichero app/config.php y devuelve el array de configuracion.
+     * Si el fichero no existe devuelve los valores por defecto.
      */
-    public static function leerConfig(): array
+    public static function leerConfig()
     {
         $ruta = base_path('app/config.php');
         if (file_exists($ruta)) {
@@ -61,6 +50,7 @@ class ConfigController extends Controller
                 return $config;
             }
         }
+        // Valores por defecto si no existe el fichero
         return [
             'por_pagina'        => 5,
             'provincia_defecto' => '',
@@ -69,15 +59,15 @@ class ConfigController extends Controller
     }
 
     /**
-     * Muestra el panel de configuración con los valores actuales.
-     * Solo accesible para administradores.
-     *
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * Muestra el panel de configuracion con los valores actuales.
      */
     public function mostrar()
     {
-        if ($redir = $this->verificarSesion()) return $redir;
-        if ($redir = $this->soloAdmin())      return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
+
+        $redir = $this->soloAdmin();
+        if ($redir != null) return $redir;
 
         $config     = self::leerConfig();
         $provincias = $this->provincias();
@@ -86,27 +76,28 @@ class ConfigController extends Controller
     }
 
     /**
-     * Procesa el formulario y genera un nuevo fichero app/config.php
-     * con los valores enviados por el administrador.
-     *
-     * @param  Request $r Petición HTTP con los nuevos valores de configuración.
-     * @return \Illuminate\Http\RedirectResponse
+     * Guarda la configuracion en el fichero app/config.php.
+     * El fichero se genera automaticamente con el contenido PHP.
+     * @param Request $r
      */
     public function guardar(Request $r)
     {
-        if ($redir = $this->verificarSesion()) return $redir;
-        if ($redir = $this->soloAdmin())      return $redir;
+        $redir = $this->verificarSesion();
+        if ($redir != null) return $redir;
 
-        $porPagina       = max(1, min(100, (int) $r->por_pagina));
+        $redir = $this->soloAdmin();
+        if ($redir != null) return $redir;
+
+        // Recogemos los valores del formulario
+        $porPagina        = (int)$r->por_pagina;
         $provinciaDefecto = trim($r->provincia_defecto ?? '');
         $poblacionDefecto = trim($r->poblacion_defecto ?? '');
 
-        // Generar contenido PHP del fichero de configuración
-        $contenido = "<?php\n";
-        $contenido .= "/**\n";
-        $contenido .= " * Fichero de configuración de la aplicación Gestor de Tareas.\n";
-        $contenido .= " * Generado automáticamente el " . date('d/m/Y H:i:s') . "\n";
-        $contenido .= " */\n";
+        if ($porPagina < 1) $porPagina = 5;
+
+        // Escribimos el fichero de configuracion con PHP
+        $contenido  = "<?php\n";
+        $contenido .= "// Fichero de configuracion generado el " . date('d/m/Y H:i') . "\n";
         $contenido .= "return [\n";
         $contenido .= "    'por_pagina'        => " . $porPagina . ",\n";
         $contenido .= "    'provincia_defecto' => '" . addslashes($provinciaDefecto) . "',\n";
@@ -115,32 +106,30 @@ class ConfigController extends Controller
 
         file_put_contents(base_path('app/config.php'), $contenido);
 
-        return redirect('configuracion')->with('exito', 'Configuración guardada correctamente.');
+        return redirect('configuracion')->with('exito', 'Configuracion guardada correctamente.');
     }
 
     /**
-     * Devuelve el array de provincias españolas con sus códigos INE.
-     *
-     * @return array Mapa código => nombre.
+     * Devuelve el array de provincias con su codigo INE.
      */
-    private function provincias(): array
+    private function provincias()
     {
         return [
             ''   => '-- Sin provincia por defecto --',
             '02' => 'Albacete',      '03' => 'Alicante',
-            '04' => 'Almería',       '05' => 'Ávila',
+            '04' => 'Almeria',       '05' => 'Avila',
             '06' => 'Badajoz',       '07' => 'Baleares',
             '08' => 'Barcelona',     '09' => 'Burgos',
-            '10' => 'Cáceres',       '11' => 'Cádiz',
-            '12' => 'Castellón',     '13' => 'Ciudad Real',
-            '14' => 'Córdoba',       '15' => 'A Coruña',
+            '10' => 'Caceres',       '11' => 'Cadiz',
+            '12' => 'Castellon',     '13' => 'Ciudad Real',
+            '14' => 'Cordoba',       '15' => 'A Coruna',
             '16' => 'Cuenca',        '17' => 'Girona',
             '18' => 'Granada',       '19' => 'Guadalajara',
-            '20' => 'Guipúzcoa',     '21' => 'Huelva',
-            '22' => 'Huesca',        '23' => 'Jaén',
-            '24' => 'León',          '25' => 'Lleida',
+            '20' => 'Guipuzcoa',     '21' => 'Huelva',
+            '22' => 'Huesca',        '23' => 'Jaen',
+            '24' => 'Leon',          '25' => 'Lleida',
             '26' => 'La Rioja',      '27' => 'Lugo',
-            '28' => 'Madrid',        '29' => 'Málaga',
+            '28' => 'Madrid',        '29' => 'Malaga',
             '30' => 'Murcia',        '31' => 'Navarra',
             '32' => 'Ourense',       '33' => 'Asturias',
             '34' => 'Palencia',      '35' => 'Las Palmas',
